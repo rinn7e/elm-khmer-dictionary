@@ -6,12 +6,12 @@ import Json.Decode.Pipeline as DecodePipe
 
 
 type alias Data =
-    { data : List Tuc
+    { data : List Result
     }
 
 
-type alias Tuc =
-    { meaning : List Meaning
+type alias Result =
+    { meaningList : List Meaning
     }
 
 
@@ -22,12 +22,12 @@ type alias Meaning =
 
 dataDecoder =
     DecodePipe.decode Data
-        |> DecodePipe.optional "tuc" (Decode.list tucDecoder) []
+        |> DecodePipe.optional "tuc" (Decode.list resultDecoder) []
 
 
-tucDecoder =
-    DecodePipe.decode Tuc
-        |> DecodePipe.optional "meaning" (Decode.list meaningDecoder) []
+resultDecoder =
+    DecodePipe.decode Result
+        |> DecodePipe.optional "meanings" (Decode.list meaningDecoder) []
 
 
 meaningDecoder =

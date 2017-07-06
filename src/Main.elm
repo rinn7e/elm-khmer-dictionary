@@ -3,13 +3,17 @@ module Main exposing (..)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
+import ElmEscapeHtml
+import Json.Encode as Encode
 import Http
 import Decoder
+import Jsonp
+import Task
 
 
 main =
     Html.program
-        { init = ( model, fetchData )
+        { init = ( model, Cmd.none )
         , update = update
         , view = view
         , subscriptions = subscriptions
@@ -22,7 +26,7 @@ type alias Model =
     , errorText : String
     , loading : Bool
     , result : Bool
-    , resultList : List String
+    , resultList : List Decoder.Result
     }
 
 
@@ -32,7 +36,7 @@ model =
     , searchText = ""
     , errorText = ""
     , loading = False
-    , result = True
+    , result = False
     , resultList = []
     }
 
@@ -41,6 +45,8 @@ type Msg
     = SearchInput String
     | ClearText
     | Search
+    | FetchSuccess Decoder.Data
+    | FetchError Http.Error
     | OnFetchData (Result Http.Error Decoder.Data)
     | NoOp
 
@@ -60,7 +66,23 @@ update msg model =
                     ( { model | errorText = "សូមសរសេរពាក្យ" }, Cmd.none )
 
                 _ ->
-                    ( { model | loading = True, errorText = "" }, Cmd.none )
+                    ( { model
+                        | loading = True
+                        , result = False
+                        , errorText = ""
+                      }
+                    , fetchData model.searchText
+                    )
+
+        FetchSuccess data ->
+            let
+                _ =
+                    Debug.log "Fetch Data" data
+            in
+                ( model, Cmd.none )
+
+        FetchError error ->
+            ( model, Cmd.none )
 
         OnFetchData status ->
             case status of
@@ -69,7 +91,13 @@ update msg model =
                         _ =
                             Debug.log "Fetch Data" result
                     in
-                        ( model, Cmd.none )
+                        ( { model
+                            | resultList = result.data
+                            , result = True
+                            , loading = False
+                          }
+                        , Cmd.none
+                        )
 
                 -- ( { model | promoList = newPromoList }, modal )
                 Err error ->
@@ -83,29 +111,27 @@ update msg model =
             ( model, Cmd.none )
 
 
-fetchData =
-    Http.request
-        { method = "GET"
-        , headers =
-            -- []
-            [ Http.header "Origin" "https://chmar77.github.io/"
-            , Http.header "Access-Control-Request-Method" "GET"
-            , Http.header "Access-Control-Request-Headers" "X-Custom-Header"
-            ]
-        , url = "https://glosbe.com/gapi/translate?from=km&dest=ljp&format=json&phrase=%E1%9E%80&pretty=true"
-        , body = Http.emptyBody
-        , expect = Http.expectJson Decoder.dataDecoder
-        , timeout = Nothing
-        , withCredentials = False
-        }
-        |> Http.send OnFetchData
+lookupInfo : String -> Task.Task Http.Error Decoder.Data
+lookupInfo phrase =
+    Jsonp.get Decoder.dataDecoder
+        ("https://glosbe.com/gapi_v0_1/translate?from=km&dest=ljp&format=json&phrase="
+            ++ phrase
+        )
+
+
+fetchData : String -> Cmd Msg
+fetchData phrase =
+    Task.attempt OnFetchData (lookupInfo phrase)
 
 
 view : Model -> Html Msg
 view model =
     div [ class "w-100 w-60-ns center dark-gray pa2 " ]
         [ div [ class "f2 mb3 mt2 mid-gray title-kh tc" ] [ text model.title ]
-        , div [ class "mb3 dib ba bw2 br2 b--light-gray pa2 flex" ]
+        , Html.form
+            [ class "mb3 dib ba bw2 br2 b--light-gray pa2 flex"
+            , onSubmit Search
+            ]
             [ input
                 [ class "bn noselect outline-0 lh-kh flex-auto"
                 , placeholder "ពាក្យ"
@@ -115,48 +141,70 @@ view model =
                 []
             , button
                 [ class "pa2 bn bg-white pointer hover-bg-light-gray mr1"
-                  -- dn-ns
+                , type_ "button"
                 , onClick ClearText
                 ]
                 [ text "X" ]
             , button
                 [ class "pa2 bg-light-gray bn br1 pointer hover-bg-moon-gray"
-                , onClick Search
                 ]
                 [ text "ស្វែងរក" ]
             ]
           -- Error Text
-        , if model.errorText /= "" then
-            p [ class "red" ] [ text model.errorText ]
-          else
-            div [] []
-          -- Loading
-        , if model.loading == True then
-            loadingView model.searchText
-          else
-            div [] []
-          -- Result List
-        , if model.result == True then
-            if model.resultList == [] then
-                p [] [ text "ស្វែងរកមិនមាន" ]
-            else
-                resultView
-          else
-            div [] []
+        , div [ class "my-mh" ]
+            [ if model.errorText /= "" then
+                p [ class "red" ] [ text model.errorText ]
+              else
+                div [] []
+              -- Loading
+            , if model.loading == True then
+                loadingView model.searchText
+              else
+                div [] []
+              -- Result List
+            , if model.result == True then
+                if model.resultList == [] then
+                    p [ class "red" ] [ text "ស្វែងរកមិនមាន" ]
+                else
+                    div [] (List.map resultView model.resultList)
+              else
+                div [] []
+            ]
+        , footerView
         ]
 
 
 loadingView searchText =
+    div
+        [ class "mb3 green"
+        ]
+        [ text ("កំពុងស្វែងរកពាក្យ \"" ++ searchText ++ "\" ...") ]
+
+
+resultView result =
     div [ class "mb3" ]
-        [ text ("កំពុងស្វែងរកពាក្យ \"" ++ searchText ++ "\" ...")
-        ]
+        (List.map
+            (\meaning ->
+                p
+                    [ class "lh-kh"
+                    ]
+                    [ meaning.text
+                        |> ElmEscapeHtml.unescape
+                        |> ElmEscapeHtml.unescape
+                        |> String.append "- "
+                        |> text
+                    ]
+            )
+            result.meaningList
+        )
 
 
-resultView =
-    div [ class "mb3 dn" ]
-        [ p [ class "lh-copy" ] [ text "ព្យញ្ជនៈទី ១ ក្នុងវគ្គទី ១ ជាកណ្ឋជៈ មានសំឡេងក្នុងឋានបំពង់ក ជាសិថិល-អឃោសៈ, សំ. បា. មានសូរស័ព្ទថា កៈ ។" ]
-        , p [ class "lh-copy" ] [ text "ព្យញ្ជនៈទី ១ ក្នុងវគ្គទី ១ ជាកណ្ឋជៈ មានសំឡេងក្នុងឋានបំពង់ក ជាសិថិល-អឃោសៈ, សំ. បា. មានសូរស័ព្ទថា កៈ ។" ]
-        ]
+footerView =
+    div [] [ text "បង្កើតដោយ ឆ្មារ៧៧" ]
+
+
+
+-- , p [ class "lh-copy" ] [ text "ព្យញ្ជនៈទី ១ ក្នុងវគ្គទី ១ ជាកណ្ឋជៈ មានសំឡេងក្នុងឋានបំពង់ក ជាសិថិល-អឃោសៈ, សំ. បា. មានសូរស័ព្ទថា កៈ ។" ]
 
 
 subscriptions : Model -> Sub Msg
