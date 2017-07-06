@@ -88,7 +88,7 @@ fetchData =
         { method = "GET"
         , headers =
             -- []
-            [ Http.header "Origin" "https://chmar77.github.io/elm-khmer-dictionary/index.html"
+            [ Http.header "Origin" "https://chmar77.github.io/"
             , Http.header "Access-Control-Request-Method" "GET"
             , Http.header "Access-Control-Request-Headers" "X-Custom-Header"
             ]

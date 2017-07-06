@@ -9274,7 +9274,19 @@ var _user$project$Main$fetchData = A2(
 	_elm_lang$http$Http$request(
 		{
 			method: 'GET',
-			headers: {ctor: '[]'},
+			headers: {
+				ctor: '::',
+				_0: A2(_elm_lang$http$Http$header, 'Origin', 'https://chmar77.github.io/'),
+				_1: {
+					ctor: '::',
+					_0: A2(_elm_lang$http$Http$header, 'Access-Control-Request-Method', 'GET'),
+					_1: {
+						ctor: '::',
+						_0: A2(_elm_lang$http$Http$header, 'Access-Control-Request-Headers', 'X-Custom-Header'),
+						_1: {ctor: '[]'}
+					}
+				}
+			},
 			url: 'https://glosbe.com/gapi/translate?from=km&dest=ljp&format=json&phrase=%E1%9E%80&pretty=true',
 			body: _elm_lang$http$Http$emptyBody,
 			expect: _elm_lang$http$Http$expectJson(_user$project$Decoder$dataDecoder),
