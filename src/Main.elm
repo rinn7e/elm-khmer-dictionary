@@ -87,11 +87,11 @@ fetchData =
     Http.request
         { method = "GET"
         , headers =
-            []
-            -- [ Http.header "Origin" "localhost:8000"
-            -- , Http.header "Access-Control-Request-Method" "POST"
-            -- , Http.header "Access-Control-Request-Headers" "X-Custom-Header"
-            -- ]
+            -- []
+            [ Http.header "Origin" "https://chmar77.github.io/elm-khmer-dictionary/index.html"
+            , Http.header "Access-Control-Request-Method" "GET"
+            , Http.header "Access-Control-Request-Headers" "X-Custom-Header"
+            ]
         , url = "https://glosbe.com/gapi/translate?from=km&dest=ljp&format=json&phrase=%E1%9E%80&pretty=true"
         , body = Http.emptyBody
         , expect = Http.expectJson Decoder.dataDecoder
