@@ -9,6 +9,7 @@ import Http
 import Decoder
 import Jsonp
 import Task
+import Dom
 
 
 main =
@@ -45,9 +46,8 @@ type Msg
     = SearchInput String
     | ClearText
     | Search
-    | FetchSuccess Decoder.Data
-    | FetchError Http.Error
     | OnFetchData (Result Http.Error Decoder.Data)
+    | OnInputFocus (Result Dom.Error ())
     | NoOp
 
 
@@ -58,7 +58,9 @@ update msg model =
             ( { model | searchText = text }, Cmd.none )
 
         ClearText ->
-            ( { model | searchText = "" }, Cmd.none )
+            ( { model | searchText = "" }
+            , Task.attempt OnInputFocus (Dom.focus "input")
+            )
 
         Search ->
             case model.searchText of
@@ -74,15 +76,17 @@ update msg model =
                     , fetchData model.searchText
                     )
 
-        FetchSuccess data ->
-            let
-                _ =
-                    Debug.log "Fetch Data" data
-            in
-                ( model, Cmd.none )
+        OnInputFocus status ->
+            case status of
+                Ok result ->
+                    ( model, Cmd.none )
 
-        FetchError error ->
-            ( model, Cmd.none )
+                Err error ->
+                    let
+                        _ =
+                            Debug.log "Focus Dom" error
+                    in
+                        ( model, Cmd.none )
 
         OnFetchData status ->
             case status of
@@ -137,10 +141,11 @@ view model =
                 , placeholder "ពាក្យ"
                 , onInput SearchInput
                 , value model.searchText
+                , id "input"
                 ]
                 []
             , button
-                [ class "pa2 bn bg-white pointer hover-bg-light-gray mr1"
+                [ class "pv2 ph3 bn bg-white pointer hover-bg-light-gray mr1"
                 , type_ "button"
                 , onClick ClearText
                 ]
@@ -200,7 +205,11 @@ resultView result =
 
 
 footerView =
-    div [] [ text "បង្កើតដោយ ឆ្មារ៧៧" ]
+    div []
+        [ text "បង្កើតដោយ"
+        , a [ class "blue no-underline", href "https://github.com/chmar77/elm-khmer-dictionary", target "_blank" ]
+            [ text " chmar77" ]
+        ]
 
 
 
